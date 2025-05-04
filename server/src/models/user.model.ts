@@ -1,4 +1,5 @@
 import mongoose, { Model } from "mongoose";
+import bcrypt from "bcrypt";
 
 export interface IUser {
   name: string;
@@ -9,6 +10,7 @@ export interface IUser {
     public_id: string;
     url: string;
   };
+  comparePassword: (password: string) => Promise<boolean>;
 }
 
 const UserSchema = new mongoose.Schema<IUser>(
@@ -28,6 +30,7 @@ const UserSchema = new mongoose.Schema<IUser>(
     password: {
       type: String,
       required: true,
+      select: false,
     },
     avatar: {
       public_id: {
@@ -44,6 +47,16 @@ const UserSchema = new mongoose.Schema<IUser>(
     timestamps: true,
   }
 );
+
+UserSchema.pre("save", async function (next) {
+  if (!this.isModified("password")) return next();
+  this.password = await bcrypt.hash(this.password, 10);
+  next();
+});
+
+UserSchema.methods.comparePassword = async function (password: string) {
+  return await bcrypt.compare(password, this.password);
+};
 
 const UserModel: Model<IUser> = mongoose.model<IUser>("User", UserSchema);
 
